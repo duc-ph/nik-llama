@@ -59,9 +59,18 @@ trainer = SFTTrainer(
 
 trainer.train()
 
+# push merged model to HF
 model.push_to_hub_merged(
     repo_id="phduc/llama3.1-70b-nik-merged-4bit",
     tokenizer=tokenizer,
     save_method="merged_4bit",
     private=False
+)
+
+# also push the slim LoRA for future fine-tuning
+model.push_to_hub_merged(
+    repo_id   = "phduc/llama3.1-70b-nik-lora",
+    tokenizer = tokenizer,
+    save_method = "lora",
+    private   = False
 )

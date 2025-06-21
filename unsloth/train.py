@@ -41,7 +41,7 @@ def latest_checkpoint(output_dir: str) -> Optional[str]:
 def build_trainer(resume: Optional[str] = None) -> SFTTrainer:
     max_seq_length = 4096
 
-    # ── Load 4-bit base ────────────────────────────────────────────────────────
+    # Load 4-bit base
     model, tokenizer = FastModel.from_pretrained(
         MODEL_NAME,
         load_in_4bit=True,          # QLoRA
@@ -49,7 +49,7 @@ def build_trainer(resume: Optional[str] = None) -> SFTTrainer:
         max_seq_length=max_seq_length,
     )
 
-    # ── Attach LoRA adapters ──────────────────────────────────────────────────
+    # Attach LoRA adapters
     model = FastLanguageModel.get_peft_model(
         model,
         r=64,
@@ -64,7 +64,7 @@ def build_trainer(resume: Optional[str] = None) -> SFTTrainer:
         cut_cross_entropy=True,
     )
 
-    # ── Load dataset ──────────────────────────────────────────────────────────
+    # Load dataset
     train_dataset = load_dataset(
         "json",
         data_files="../data/training_data_before_2025.jsonl"
@@ -75,7 +75,7 @@ def build_trainer(resume: Optional[str] = None) -> SFTTrainer:
         data_files="../data/val_data_2025_onward.jsonl"
     )["train"]
 
-    # ── Training arguments ────────────────────────────────────────────────────
+    # Training arguments
     training_args = UnslothTrainingArguments(
         per_device_train_batch_size=1,          # micro-batch
         gradient_accumulation_steps=4,          # effective batch = 4
@@ -89,7 +89,7 @@ def build_trainer(resume: Optional[str] = None) -> SFTTrainer:
         optim="adamw_8bit",
         bf16=True,
         logging_steps=1,
-        save_steps=500,
+        save_steps=200,
         seed=3407,
         output_dir=OUTPUT_DIR,
         report_to="wandb",
@@ -98,7 +98,7 @@ def build_trainer(resume: Optional[str] = None) -> SFTTrainer:
         eval_steps=100,
     )
 
-    # ── Build trainer ─────────────────────────────────────────────────────────
+    # Build trainer
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
@@ -118,28 +118,6 @@ def build_trainer(resume: Optional[str] = None) -> SFTTrainer:
     return trainer
 
 
-def push_lora_only(trainer: SFTTrainer) -> None:
-    """Push adapters (safe for future fine-tune)."""
-    trainer.model.push_to_hub_merged(
-        repo_id=HF_LORA_REPO,
-        tokenizer=trainer.tokenizer,
-        save_method="lora",
-        private=False,
-    )
-    print(f"✅ LoRA adapters pushed to HF: {HF_LORA_REPO}")
-
-
-def push_final_merge(trainer: SFTTrainer) -> None:
-    """OPTIONAL – call once you’re **completely** done fine-tuning."""
-    trainer.model.push_to_hub_merged(
-        repo_id=HF_FINAL_REPO,
-        tokenizer=trainer.tokenizer,
-        save_method="merged_4bit_forced",   # explicitly accept the warning
-        private=False,
-    )
-    print(f"✅ Final 4-bit model pushed to HF: {HF_FINAL_REPO}")
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -149,11 +127,7 @@ def main() -> None:
         help="Path to a specific checkpoint to resume from "
              "(defaults to the latest in outputs/)",
     )
-    parser.add_argument(
-        "--push-final",
-        action="store_true",
-        help="Merge LoRA into 4-bit and push to HF after training.",
-    )
+
     args = parser.parse_args()
 
     resume_ckpt = (
@@ -164,18 +138,6 @@ def main() -> None:
 
     trainer = build_trainer(resume=resume_ckpt)
     trainer.train(resume_from_checkpoint=resume_ckpt)
-
-    # ── Push LoRA adapters (always) ───────────────────────────────────────────
-    push_lora_only(trainer)
-
-    # ── Optional final merge ─────────────────────────────────────────────────
-    if args.push_final:
-        push_final_merge(trainer)
-    else:
-        print(
-            "\nℹ️  Skipping final merged_4bit push. "
-            "Run with --push-final when you’re ready to publish the frozen model."
-        )
 
 
 if __name__ == "__main__":

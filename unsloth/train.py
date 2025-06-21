@@ -93,7 +93,6 @@ def build_trainer(resume: Optional[str] = None) -> SFTTrainer:
         run_name=WANDB_PROJECT,
         evaluation_strategy="steps",  # or "epoch"
         eval_steps=250,               # evaluate every 250 optimiser steps
-        save_steps=500,
     )
 
     # ── Build trainer ─────────────────────────────────────────────────────────

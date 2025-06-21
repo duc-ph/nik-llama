@@ -1,1 +1,3 @@
 unsloth==2025.6.3
+wandb==0.20.1
+python-dotenv

@@ -3,9 +3,10 @@ import glob
 import os
 from typing import Optional
 
+# unsloth should be imported first before trl, peft... in order to be optimized
+from unsloth import FastLanguageModel, FastModel, UnslothTrainingArguments
 from datasets import load_dataset
 from trl import SFTTrainer
-from unsloth import FastLanguageModel, FastModel, UnslothTrainingArguments
 from dotenv import load_dotenv
 import wandb
 

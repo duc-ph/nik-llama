@@ -65,13 +65,15 @@ def build_trainer(resume: Optional[str] = None) -> SFTTrainer:
     )
 
     # ── Load dataset ──────────────────────────────────────────────────────────
-    raw_dataset = load_dataset(
+    train_dataset = load_dataset(
         "json",
         data_files="../data/training_data_before_2025.jsonl"
-    )
-    split = raw_dataset["train"].train_test_split(test_size=0.05, seed=3407)
-    train_dataset = split["train"]
-    eval_dataset = split["test"]
+    )["train"]
+
+    eval_dataset = load_dataset(
+        "json",
+        data_files="../data/val_data_2025_onward.jsonl"
+    )["train"]
 
     # ── Training arguments ────────────────────────────────────────────────────
     training_args = UnslothTrainingArguments(
@@ -93,7 +95,7 @@ def build_trainer(resume: Optional[str] = None) -> SFTTrainer:
         report_to="wandb",
         run_name=WANDB_PROJECT,
         eval_strategy="steps",  # or "epoch"
-        eval_steps=250,               # evaluate every 250 optimiser steps
+        eval_steps=100,
     )
 
     # ── Build trainer ─────────────────────────────────────────────────────────

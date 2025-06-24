@@ -1,7 +1,11 @@
 import argparse
 import json
-import torch
+import gc
+from tqdm import tqdm
 from unsloth import FastLanguageModel
+import torch
+
+BATCH_SIZE = 8
 
 parser = argparse.ArgumentParser()
 parser.add_argument("checkpoint_dir")
@@ -21,14 +25,19 @@ for post in posts:
     prompts.append(post[:first_paragraph_end])
 
 results = []
-BATCH_SIZE = 64
-for i in range(0, len(prompts), BATCH_SIZE):
+for i in tqdm(range(0, len(prompts), BATCH_SIZE)):
     batch_prompts = prompts[i:i + BATCH_SIZE]
-    inputs = tokenizer(batch_prompts, return_tensors='pt', padding=True, truncation=True).to('cuda')
+    inputs = tokenizer(batch_prompts, return_tensors='pt',
+                       padding=True, truncation=True).to('cuda')
     with torch.no_grad():
         outputs = model.generate(**inputs)
+    outputs = outputs.to('cpu')
     decoded = tokenizer.batch_decode(outputs, skip_special_tokens=True)
     results.extend(decoded)
+
+    del inputs, outputs
+    torch.cuda.empty_cache()
+    gc.collect()
 
 with open(args.output_path, 'w') as out_file:
     for line in results:

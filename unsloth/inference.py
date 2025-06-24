@@ -1,6 +1,7 @@
 import argparse
 import json
 import gc
+import time
 from tqdm import tqdm
 from unsloth import FastLanguageModel
 import torch
@@ -13,7 +14,7 @@ parser.add_argument("output_path")
 args = parser.parse_args()
 
 model, tokenizer = FastLanguageModel.from_pretrained(args.checkpoint_dir)
-FastLanguageModel.for_inference(model) # Enable native 2x faster inference
+FastLanguageModel.for_inference(model)  # Enable native 2x faster inference
 model.eval()
 
 with open('../data/val_data_2025_onward.jsonl', 'r') as f:
@@ -31,11 +32,22 @@ for i in tqdm(range(0, len(prompts), BATCH_SIZE)):
     batch_prompts = prompts[i:i + BATCH_SIZE]
     inputs = tokenizer(batch_prompts, return_tensors='pt',
                        padding=True, truncation=True).to('cuda')
+
+    # Track time and token count
+    start_time = time.time()
     with torch.no_grad():
         outputs = model.generate(**inputs, max_new_tokens=4000)
-    outputs = outputs.to('cpu')
+    end_time = time.time()
+
     decoded = tokenizer.batch_decode(outputs, skip_special_tokens=True)
     results.extend(decoded)
+
+    # Token/sec calculation
+    generated_tokens = sum(len(tokenizer.encode(d)) for d in decoded)
+    elapsed_time = end_time - start_time
+    throughput = generated_tokens / elapsed_time if elapsed_time > 0 else float('inf')
+    print(f"Batch {i//BATCH_SIZE + 1}: {generated_tokens} tokens in {elapsed_time:.2f} sec "
+          f"({throughput:.2f} tokens/sec)")
 
     del inputs, outputs
     torch.cuda.empty_cache()

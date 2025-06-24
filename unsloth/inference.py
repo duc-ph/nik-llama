@@ -5,7 +5,7 @@ from tqdm import tqdm
 from unsloth import FastLanguageModel
 import torch
 
-BATCH_SIZE = 8
+BATCH_SIZE = 2
 
 parser = argparse.ArgumentParser()
 parser.add_argument("checkpoint_dir")
@@ -13,6 +13,8 @@ parser.add_argument("output_path")
 args = parser.parse_args()
 
 model, tokenizer = FastLanguageModel.from_pretrained(args.checkpoint_dir)
+FastLanguageModel.for_inference(model) # Enable native 2x faster inference
+model.eval()
 
 with open('../data/val_data_2025_onward.jsonl', 'r') as f:
     posts = [json.loads(line)['text'] for line in f]
@@ -30,7 +32,7 @@ for i in tqdm(range(0, len(prompts), BATCH_SIZE)):
     inputs = tokenizer(batch_prompts, return_tensors='pt',
                        padding=True, truncation=True).to('cuda')
     with torch.no_grad():
-        outputs = model.generate(**inputs)
+        outputs = model.generate(**inputs, max_new_tokens=4000)
     outputs = outputs.to('cpu')
     decoded = tokenizer.batch_decode(outputs, skip_special_tokens=True)
     results.extend(decoded)

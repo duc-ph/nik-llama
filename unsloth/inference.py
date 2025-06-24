@@ -32,4 +32,5 @@ for i in range(0, len(prompts), BATCH_SIZE):
 
 with open(args.output_path, 'w') as out_file:
     for line in results:
-        out_file.write(line.strip() + '\n')
+        json.dump({"text": line.strip()}, out_file)
+        out_file.write('\n')

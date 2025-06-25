@@ -36,7 +36,7 @@ with open(args.output_path, 'w') as out_file:
 
         start_time = time.time()
         with torch.no_grad():
-            outputs = model.generate(**inputs, max_new_tokens=4000)
+            outputs = model.generate(**inputs, max_new_tokens=2000)
         end_time = time.time()
 
         decoded = tokenizer.batch_decode(outputs, skip_special_tokens=True)

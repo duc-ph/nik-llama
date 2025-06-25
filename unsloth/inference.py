@@ -44,6 +44,7 @@ with open(args.output_path, 'w') as out_file:
         for line in decoded:
             json.dump({"text": line.strip()}, out_file)
             out_file.write('\n')
+        out_file.flush()
 
         generated_tokens = sum(len(tokenizer.encode(d)) for d in decoded)
         elapsed_time = end_time - start_time

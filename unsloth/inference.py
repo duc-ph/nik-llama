@@ -27,33 +27,30 @@ for post in posts:
     first_paragraph_end = post.find('\n', content_start_idx) + 1
     prompts.append(post[:first_paragraph_end])
 
-results = []
-for i in tqdm(range(0, len(prompts), BATCH_SIZE)):
-    batch_prompts = prompts[i:i + BATCH_SIZE]
-    inputs = tokenizer(batch_prompts, return_tensors='pt',
-                       padding=True, truncation=True).to('cuda')
-
-    # Track time and token count
-    start_time = time.time()
-    with torch.no_grad():
-        outputs = model.generate(**inputs, max_new_tokens=4000)
-    end_time = time.time()
-
-    decoded = tokenizer.batch_decode(outputs, skip_special_tokens=True)
-    results.extend(decoded)
-
-    # Token/sec calculation
-    generated_tokens = sum(len(tokenizer.encode(d)) for d in decoded)
-    elapsed_time = end_time - start_time
-    throughput = generated_tokens / elapsed_time if elapsed_time > 0 else float('inf')
-    print(f"Batch {i//BATCH_SIZE + 1}: {generated_tokens} tokens in {elapsed_time:.2f} sec "
-          f"({throughput:.2f} tokens/sec)")
-
-    del inputs, outputs
-    torch.cuda.empty_cache()
-    gc.collect()
-
 with open(args.output_path, 'w') as out_file:
-    for line in results:
-        json.dump({"text": line.strip()}, out_file)
-        out_file.write('\n')
+    for i in tqdm(range(0, len(prompts), BATCH_SIZE)):
+        batch_prompts = prompts[i:i + BATCH_SIZE]
+        inputs = tokenizer(batch_prompts, return_tensors='pt',
+                           padding=True, truncation=True).to('cuda')
+
+        start_time = time.time()
+        with torch.no_grad():
+            outputs = model.generate(**inputs, max_new_tokens=4000)
+        end_time = time.time()
+
+        decoded = tokenizer.batch_decode(outputs, skip_special_tokens=True)
+
+        # Write to file immediately
+        for line in decoded:
+            json.dump({"text": line.strip()}, out_file)
+            out_file.write('\n')
+
+        generated_tokens = sum(len(tokenizer.encode(d)) for d in decoded)
+        elapsed_time = end_time - start_time
+        throughput = generated_tokens / elapsed_time if elapsed_time > 0 else float('inf')
+        print(f"Batch {i//BATCH_SIZE + 1}: {generated_tokens} tokens in {elapsed_time:.2f} sec "
+              f"({throughput:.2f} tokens/sec)")
+
+        del inputs, outputs
+        torch.cuda.empty_cache()
+        gc.collect()

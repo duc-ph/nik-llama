@@ -30,8 +30,7 @@ for post in posts:
     content_marker = '### Content: \n'
     content_start_idx = post.find(content_marker) + len(content_marker)
     first_paragraph_end = post.find('\n', content_start_idx) + 1
-    first_word_2nd_paragraph = post.find(' ', first_paragraph_end)
-    prompts.append(post[:first_word_2nd_paragraph])
+    prompts.append(post[:first_paragraph_end])
 
 # Claude API
 client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])

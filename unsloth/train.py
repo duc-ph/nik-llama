@@ -1,9 +1,14 @@
+"""Fine-tuning script for Llama 3.1 70B on nik.art blog posts.
+
+This script uses Unsloth for memory-efficient training with LoRA adaptation.
+Requires environment variables for model configuration and API keys.
+"""
+
 import argparse
 import glob
 import os
 from typing import Optional
 
-# unsloth should be imported first before trl, peft... in order to be optimized
 from unsloth import FastLanguageModel, FastModel, UnslothTrainingArguments
 from datasets import load_dataset
 from trl import SFTTrainer
@@ -21,11 +26,12 @@ WANDB_PROJECT = os.getenv("WANDB_PROJECT")
 WANDB_RUN_ID = os.getenv("WANDB_RUN_ID")
 WANDB_RESUME = os.getenv("WANDB_RESUME")
 
-wandb.init(
-    project=WANDB_PROJECT,
-    id=WANDB_RUN_ID,
-    resume=WANDB_RESUME or False,
-)
+if WANDB_PROJECT:
+    wandb.init(
+        project=WANDB_PROJECT,
+        id=WANDB_RUN_ID,
+        resume=WANDB_RESUME or False,
+    )
 
 
 def latest_checkpoint(output_dir: str) -> Optional[str]:
@@ -39,17 +45,23 @@ def latest_checkpoint(output_dir: str) -> Optional[str]:
 
 
 def build_trainer(resume: Optional[str] = None) -> SFTTrainer:
+    """Build and configure the SFT trainer with optimized settings.
+    
+    Args:
+        resume: Optional checkpoint path to resume training from
+        
+    Returns:
+        Configured SFTTrainer instance
+    """
     max_seq_length = 4096
 
-    # Load 4-bit base
     model, tokenizer = FastModel.from_pretrained(
         MODEL_NAME,
-        load_in_4bit=True,          # QLoRA
-        full_finetuning=False,      # LoRA-only
+        load_in_4bit=True,
+        full_finetuning=False,
         max_seq_length=max_seq_length,
     )
 
-    # Attach LoRA adapters
     model = FastLanguageModel.get_peft_model(
         model,
         r=64,
@@ -64,7 +76,6 @@ def build_trainer(resume: Optional[str] = None) -> SFTTrainer:
         cut_cross_entropy=True,
     )
 
-    # Load dataset
     train_dataset = load_dataset(
         "json",
         data_files="../data/training_data_before_2025.jsonl"
@@ -75,13 +86,12 @@ def build_trainer(resume: Optional[str] = None) -> SFTTrainer:
         data_files="../data/val_data_2025_onward.jsonl"
     )["train"]
 
-    # Training arguments
     training_args = UnslothTrainingArguments(
-        per_device_train_batch_size=1,          # micro-batch
-        gradient_accumulation_steps=4,          # effective batch = 4
-        num_train_epochs=4,                     # 2 past + 2 more
+        per_device_train_batch_size=1,
+        gradient_accumulation_steps=4,
+        num_train_epochs=4,
         max_seq_length=max_seq_length,
-        learning_rate=2e-5,                     # lower LR for continued SFT
+        learning_rate=2e-5,
         embedding_learning_rate=3e-6,
         lr_scheduler_type="cosine",
         warmup_ratio=0.1,
@@ -92,13 +102,12 @@ def build_trainer(resume: Optional[str] = None) -> SFTTrainer:
         save_steps=200,
         seed=3407,
         output_dir=OUTPUT_DIR,
-        report_to="wandb",
+        report_to="wandb" if WANDB_PROJECT else None,
         run_name=WANDB_PROJECT,
-        eval_strategy="steps",  # or "epoch"
+        eval_strategy="steps",
         eval_steps=100,
     )
 
-    # Build trainer
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
@@ -109,35 +118,37 @@ def build_trainer(resume: Optional[str] = None) -> SFTTrainer:
         args=training_args,
     )
 
-    # If resuming, HF will restore optimizer/scheduler/etc internally.
     if resume:
-        print(f"👉 Resuming from checkpoint: {resume}")
+        print(f"Resuming from checkpoint: {resume}")
     else:
-        print("👉 Starting a fresh run")
+        print("Starting fresh training run")
 
     return trainer
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
+    """Main training function with checkpoint resume support."""
+    parser = argparse.ArgumentParser(
+        description="Fine-tune Llama 3.1 70B on nik.art blog posts"
+    )
     parser.add_argument(
         "--resume",
         type=str,
         default=None,
-        help="Path to a specific checkpoint to resume from "
-             "(defaults to the latest in outputs/)",
+        help="Path to checkpoint to resume from (defaults to latest)",
     )
 
     args = parser.parse_args()
 
-    resume_ckpt = (
-        args.resume
-        if args.resume
-        else latest_checkpoint(OUTPUT_DIR)
-    )
+    resume_ckpt = args.resume or latest_checkpoint(OUTPUT_DIR)
 
+    print(f"Starting training with model: {MODEL_NAME}")
+    print(f"Output directory: {OUTPUT_DIR}")
+    
     trainer = build_trainer(resume=resume_ckpt)
     trainer.train(resume_from_checkpoint=resume_ckpt)
+    
+    print("Training completed successfully!")
 
 
 if __name__ == "__main__":

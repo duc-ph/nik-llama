@@ -1,0 +1,41 @@
+# Environment files
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Model outputs and checkpoints
+unsloth/outputs/
+*.safetensors
+*.bin
+*.pt
+*.pth
+
+# Data files (large)
+data/all_posts.json
+data/*.jsonl
+
+# Logs
+*.log
+wandb/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

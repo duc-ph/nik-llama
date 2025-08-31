@@ -2,6 +2,8 @@
 
 This project fine-tunes Llama 3.1 70B to generate blog posts in the distinctive style of [nik.art](https://nik.art/). The model learns to mimic the author's writing patterns, tone, and content structure through supervised fine-tuning.
 
+You can read the generated posts here: https://duc-ph.github.io/nik-llama/
+
 ## Project Overview
 
 **Objective**: Create an AI model that can generate blog posts matching the style and quality of nik.art content.
@@ -58,7 +60,6 @@ nik_llama/
 │   ├── inference.py               # Generation script
 │   ├── output_review.py           # Claude evaluation script
 │   ├── synthesize_result.ipynb    # Results processing
-│   ├── comparison.html            # Final results visualization
 │   ├── outputs/                   # Generated content and evaluations
 │   └── requirements.txt
 └── README.md
@@ -177,7 +178,6 @@ The fine-tuned model successfully generates blog posts that:
 - Demonstrate coherent reasoning and meaningful insights
 - Avoid common language model pitfalls (repetition, hallucination)
 
-View the complete results in `unsloth/comparison.html`.
 
 ## License
 
